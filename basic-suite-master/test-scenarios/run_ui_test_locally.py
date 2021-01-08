@@ -3,19 +3,20 @@ import shutil
 from test_utils.navigation.driver import *
 from datetime import datetime
 from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
-import ost_utils.selenium.docker as docker
+import ost_utils.selenium.podman as podman
 
-test_file = __import__('100_basic_ui_sanity_pytest')
+test_file = __import__('test_100_basic_ui_sanity')
 
-engine_ip = '192.168.1.107'
-engine_fqdn = 'engine'
-engine_url = "https://%s:8443/ovirt-engine/webadmin" % engine_fqdn
 engine_username = 'admin'
-engine_password = 'a'
 engine_cert = '/tmp/pki-resource'
 
+engine_ip = '192.168.1.107'
+engine_fqdn = 'localhost.localdomain'
+engine_url = "https://%s:8443/ovirt-engine" % engine_fqdn
+engine_password = 'a'
+
 def hub_url():
-    with docker.grid(engine_fqdn, engine_ip) as hub_url:
+    with podman.grid(engine_fqdn, engine_ip, None, podman.HUB_CONTAINER_IMAGE, 4445) as hub_url:
         yield hub_url
 
 def firefox_capabilities():
@@ -84,10 +85,20 @@ ovirt_driver = ovirt_driver(capabilities, hub_url, engine_url)
 screenshots_dir = screenshots_dir()
 save_screenshot = save_screenshot(ovirt_driver, browser_name, screenshots_dir)
 save_page_source = save_page_source(ovirt_driver, browser_name, screenshots_dir)
+cirros_image_glance_template_name='abc'
+ansible_host0_facts={"ansible_hostname" : "myhost"}
 
 try:
-    test_file.test_login(ovirt_driver, save_screenshot, engine_username, engine_password, engine_cert)
-    test_file.test_left_nav(ovirt_driver, save_screenshot, save_page_source)
+    test_file.test_login(ovirt_driver, save_screenshot, save_page_source, engine_username, engine_password, engine_cert)
+    test_file.test_clusters(ovirt_driver, save_screenshot, save_page_source)
+    test_file.test_hosts(ovirt_driver, ansible_host0_facts, save_screenshot, save_page_source)
+    test_file.test_templates(ovirt_driver, cirros_image_glance_template_name, save_screenshot, save_page_source)
+    test_file.test_pools(ovirt_driver, save_screenshot, save_page_source)
     test_file.test_virtual_machines(ovirt_driver, None, save_screenshot, save_page_source)
+    test_file.test_storage_domains(ovirt_driver, save_screenshot, save_page_source)
+    test_file.test_dashboard(ovirt_driver, save_screenshot, save_page_source)
+    test_file.test_logout(ovirt_driver, save_screenshot, save_page_source, engine_url)
+    test_file.test_userportal(ovirt_driver, save_screenshot, save_page_source, engine_username, engine_password)
+    test_file.test_grafana(ovirt_driver, save_screenshot, save_page_source, engine_username, engine_password, engine_url)
 finally:
     hub_url_gen = None
